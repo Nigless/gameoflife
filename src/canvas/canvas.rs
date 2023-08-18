@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use egui::{epaint::RectShape, Color32, Pos2, Rect, Rounding, Sense, Shape, Stroke, Vec2};
 
 use super::field::Field;
@@ -16,13 +18,11 @@ impl Canvas {
     }
 
     pub fn render(&mut self, ctx: &egui::Context) {
-        self.field.update();
-
         egui::CentralPanel::default().show(ctx, |ui| {
             let width = self.field.get_width() as f32 * self.scale;
             let height = self.field.get_height() as f32 * self.scale;
 
-            let (mut response, painter) =
+            let (_, painter) =
                 ui.allocate_painter(Vec2::new(width as f32, height as f32), Sense::hover());
 
             let mut shp = RectShape {
@@ -45,19 +45,28 @@ impl Canvas {
                 let x = *x as f32 * self.scale;
                 let y = *y as f32 * self.scale;
 
-                shp.rect.min = Pos2 { x: x, y: y };
+                shp.rect.min = Pos2 {
+                    x: x - 1.0,
+                    y: y - 1.0,
+                };
                 shp.rect.max = Pos2 {
-                    x: x + 1.0,
-                    y: y + 1.0,
+                    x: x + 2.0,
+                    y: y + 2.0,
                 };
 
-                shp.fill = Color32::from_rgb(255, 255, 255);
+                if cell.died {
+                    shp.fill = Color32::from_rgb(255 / 2, 255 / 2, 255 / 2);
+                } else {
+                    shp.fill = Color32::from_rgb(255, 255, 255);
+                }
 
                 painter.add(Shape::Rect(shp));
             }
+            let s = Instant::now();
+            self.field.update();
 
-            response.mark_changed();
-            response
+            println!("{:?}", s.elapsed());
+            ctx.request_repaint()
         });
     }
 }

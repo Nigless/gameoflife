@@ -1,4 +1,7 @@
-use std::collections::{hash_map, HashMap};
+use std::{
+    collections::{hash_map, HashMap},
+    ops::Sub,
+};
 
 use super::cell::Cell;
 use crate::lib::enum_length::EnumLength;
@@ -115,7 +118,18 @@ impl Field {
                     continue;
                 }
 
-                self.data.get(&pos).as_mut();
+                let cell = self.data.get_mut(&pos).unwrap();
+
+                if cell.died {
+                    continue;
+                }
+
+                if cell.energy <= 1.0 {
+                    cell.energy = 0.0;
+                    cell.died = true
+                } else {
+                    cell.energy -= 1.0
+                }
 
                 let input = self.cells_to_values(
                     &[
