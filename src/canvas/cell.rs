@@ -39,11 +39,13 @@ impl Cell {
 
         for i in 0..input.len() {
             for j in 0..output_count {
-                if self.weights.get(i * j).is_none() {
-                    self.weights.insert(i * j, rng.gen_range(0.0..1.0))
+                let pos = (i + 1 * j + 1) - 1;
+
+                if self.weights.get(pos).is_none() {
+                    self.weights.insert(pos, rng.gen_range(0.0..1.0))
                 }
 
-                output[j] = output[j] + (input[i] * self.weights[i * j]) / input.len() as f32
+                output.push((input[i] * self.weights[pos]) / input.len() as f32)
             }
         }
 

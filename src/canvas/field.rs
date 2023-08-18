@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
 
 use super::cell::Cell;
 use crate::lib::enum_length::EnumLength;
 use derives::EnumLength;
 
 /// field unit
-type Fu = u16;
+type Fu = u32;
 
 #[derive(EnumLength)]
 pub enum Action {
@@ -18,21 +18,23 @@ pub enum Action {
 pub struct Field {
     width: Fu,
     height: Fu,
-    data: Vec<Option<Cell>>,
+    data: HashMap<(Fu, Fu), Cell>,
 }
 
 impl Field {
     pub fn new(width: Fu, height: Fu) -> Self {
-        let mut data = Vec::<Option<Cell>>::with_capacity((width * height) as usize);
+        let mut data = HashMap::with_capacity((width * height) as usize);
 
-        for i in 0..width * height {
-            data[i as usize] = Some(Cell::new())
+        for x in 0..width {
+            for y in 0..height {
+                data.insert((x, y), Cell::new());
+            }
         }
 
         Self {
             width,
             height,
-            data: data,
+            data,
         }
     }
 
@@ -44,19 +46,17 @@ impl Field {
         self.height
     }
 
-    fn cells_to_values(&self, cells: &[&Option<Cell>], cell: &Cell) -> Vec<f32> {
+    fn cells_to_values(&self, cells: &[Option<&Cell>], cell: &Cell) -> Vec<f32> {
         let mut result: Vec<f32> = Vec::new();
         for i in 0..cells.len() {
-            let j = i * 3;
-
             let values = match &cells[i] {
                 Some(c) => c.get_values(),
                 None => [0.0, 0.0, 0.0],
             };
 
-            result[j] = values[0];
-            result[j + 1] = values[1];
-            result[j + 2] = (cell.get_dna() - values[2]).abs()
+            result.push(values[0]);
+            result.push(values[1]);
+            result.push((cell.get_dna() - values[2]).abs());
         }
         result.push(cell.get_energy());
 
@@ -106,14 +106,16 @@ impl Field {
         (x, y, action)
     }
 
-    fn update(&mut self) {
+    pub fn update(&mut self) {
         for x in 0..self.width as isize {
             for y in 0..self.height as isize {
-                let index = (x * y) as usize;
+                let pos = (x as Fu, y as Fu);
 
-                if self.data[index].is_none() {
+                if self.data.get(&pos).is_none() {
                     continue;
                 }
+
+                self.data.get(&pos).as_mut();
 
                 let input = self.cells_to_values(
                     &[
@@ -126,11 +128,12 @@ impl Field {
                         self.get_cell(x + 0, y - 1),
                         self.get_cell(x + 1, y - 1),
                     ],
-                    self.data[index].as_ref().unwrap(),
+                    self.data.get(&pos).as_ref().unwrap(),
                 );
 
-                let output = self.data[index]
-                    .as_mut()
+                let output = self
+                    .data
+                    .get_mut(&pos)
                     .unwrap()
                     .update(input, Action::LENGTH + 4);
 
@@ -141,32 +144,32 @@ impl Field {
                 let target = self.get_cell(target_x, target_y);
 
                 match action {
-                    Action::Die => self.data[index].as_mut().unwrap().die(),
+                    Action::Die => self.data.get_mut(&pos).unwrap().die(),
                     Action::Divide => {
                         if target.is_some() {
                             continue;
                         }
 
-                        let new_cell = self.data[index].as_mut().unwrap().divide();
-                        self.set_cell(target_x, target_y, Some(new_cell))
+                        let new_cell = self.data.get_mut(&pos).unwrap().divide();
+                        self.set_cell(target_x, target_y, new_cell)
                     }
                     Action::Eat => {
                         let target = self.remove_cell(target_x, target_y);
 
-                        let cell = self.remove_cell(x, y);
-
-                        self.set_cell(target_x, target_y, cell);
+                        let mut cell = self.remove_cell(x, y).unwrap();
 
                         if let Some(target) = target {
-                            self.data[index].as_mut().unwrap().eat(target);
+                            cell.eat(target);
                         }
+
+                        self.set_cell(target_x, target_y, cell);
                     }
                     Action::Move => {
                         if target.is_some() {
                             continue;
                         }
 
-                        let cell = self.remove_cell(x, y);
+                        let cell = self.remove_cell(x, y).unwrap();
 
                         self.set_cell(target_x, target_y, cell);
                     }
@@ -175,9 +178,9 @@ impl Field {
         }
     }
 
-    fn map_x(&self, mut x: isize) -> usize {
+    fn map_x(&self, mut x: isize) -> Fu {
         if x >= 0 && x < self.width as isize {
-            return x as usize;
+            return x as Fu;
         }
 
         x = x % self.width as isize;
@@ -186,12 +189,12 @@ impl Field {
             x = self.width as isize - x;
         }
 
-        x as usize
+        x as Fu
     }
 
-    fn map_y(&self, mut y: isize) -> usize {
+    fn map_y(&self, mut y: isize) -> Fu {
         if y >= 0 && y < self.height as isize {
-            return y as usize;
+            return y as Fu;
         }
 
         y = y % self.height as isize;
@@ -200,26 +203,22 @@ impl Field {
             y = self.height as isize - y;
         }
 
-        y as usize
+        y as Fu
     }
 
-    fn set_cell(&mut self, x: isize, y: isize, cell: Option<Cell>) {
-        let pos = self.map_x(x) * self.map_y(y);
-        self.data[pos] = cell
+    fn set_cell(&mut self, x: isize, y: isize, cell: Cell) {
+        self.data.insert((self.map_x(x), self.map_y(y)), cell);
     }
 
-    fn get_cell(&self, x: isize, y: isize) -> &Option<Cell> {
-        &self.data[self.map_x(x) * self.map_y(y)]
+    fn get_cell(&self, x: isize, y: isize) -> Option<&Cell> {
+        self.data.get(&(self.map_x(x), self.map_y(y)))
     }
 
     fn remove_cell(&mut self, x: isize, y: isize) -> Option<Cell> {
-        let pos = self.map_x(x) * self.map_y(y);
+        self.data.remove(&(self.map_x(x), self.map_y(y)))
+    }
 
-        if self.data[pos].is_some() {
-            let cell = self.data.remove(pos);
-            self.data.insert(pos, None);
-            return cell;
-        }
-        None
+    pub fn get_data(&self) -> &HashMap<(Fu, Fu), Cell> {
+        &self.data
     }
 }

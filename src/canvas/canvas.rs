@@ -4,19 +4,23 @@ use super::field::Field;
 
 pub struct Canvas {
     field: Field,
+    scale: f32,
 }
 
 impl Canvas {
-    pub fn new() -> Self {
+    pub fn new(scale: f32) -> Self {
         Self {
-            field: Field::new(1920 / 2, 1080 / 2),
+            field: Field::new(1920 / 4, 1080 / 4),
+            scale,
         }
     }
 
-    pub fn render(&self, ctx: &egui::Context) {
+    pub fn render(&mut self, ctx: &egui::Context) {
+        self.field.update();
+
         egui::CentralPanel::default().show(ctx, |ui| {
-            let width = self.field.get_width();
-            let height = self.field.get_height();
+            let width = self.field.get_width() as f32 * self.scale;
+            let height = self.field.get_height() as f32 * self.scale;
 
             let (mut response, painter) =
                 ui.allocate_painter(Vec2::new(width as f32, height as f32), Sense::hover());
@@ -28,18 +32,26 @@ impl Canvas {
                 stroke: Stroke::NONE,
             };
 
-            let len = (width * height) as usize;
-            for i in 0..len {
-                let x = (i as u16 % width) as f32;
-                let y = (i as u16 / width) as f32;
+            shp.rect.min = Pos2 { x: 0.0, y: 0.0 };
+            shp.rect.max = Pos2 {
+                x: width,
+                y: height,
+            };
 
-                shp.rect.min = Pos2 { x, y };
+            shp.fill = Color32::from_rgb(0, 0, 0);
+
+            painter.add(Shape::Rect(shp));
+            for ((x, y), cell) in self.field.get_data().iter() {
+                let x = *x as f32 * self.scale;
+                let y = *y as f32 * self.scale;
+
+                shp.rect.min = Pos2 { x: x, y: y };
                 shp.rect.max = Pos2 {
                     x: x + 1.0,
                     y: y + 1.0,
                 };
 
-                shp.fill = Color32::from_rgb(0, 0, 0);
+                shp.fill = Color32::from_rgb(255, 255, 255);
 
                 painter.add(Shape::Rect(shp));
             }
