@@ -33,7 +33,7 @@ impl Cell {
         }
     }
 
-    pub fn update(&self, input: Vec<f32>, output_count: usize) -> Vec<f32> {
+    pub fn update(&mut self, input: Vec<f32>, output_count: usize) -> Vec<f32> {
         let mut output: Vec<f32> = Vec::with_capacity(output_count);
         let mut rng = thread_rng();
 
@@ -60,10 +60,10 @@ impl Cell {
 
     pub fn divide(&mut self) -> Self {
         let mut rng = thread_rng();
-        let mut weights = self.weights;
-        for i in 0..self.weights.len() {
+        let mut weights = self.weights.clone();
+        for i in 0..weights.len() {
             if rng.gen_bool(0.4) {
-                weights[i] = self.weights[i] + rng.gen_range(-0.1..0.1)
+                weights[i] += rng.gen_range(-0.1..0.1)
             }
         }
 

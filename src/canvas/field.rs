@@ -44,12 +44,12 @@ impl Field {
         self.height
     }
 
-    fn cells_to_values(&self, arr: &[&Option<Cell>], cell: &Cell) -> Vec<f32> {
+    fn cells_to_values(&self, cells: &[&Option<Cell>], cell: &Cell) -> Vec<f32> {
         let mut result: Vec<f32> = Vec::new();
-        for i in 0..arr.len() {
+        for i in 0..cells.len() {
             let j = i * 3;
 
-            let values = match &arr[i] {
+            let values = match &cells[i] {
                 Some(c) => c.get_values(),
                 None => [0.0, 0.0, 0.0],
             };
@@ -61,6 +61,49 @@ impl Field {
         result.push(cell.get_energy());
 
         result
+    }
+
+    fn values_to_action(&self, values: Vec<f32>) -> (isize, isize, Action) {
+        let position_values = &values[Action::LENGTH..Action::LENGTH + 4];
+        let action_values = &values[0..Action::LENGTH];
+
+        let mut pos = 0;
+        let mut value = 0.0;
+
+        for i in 0..position_values.len() {
+            if values[i] > value {
+                pos = i;
+                value = values[i];
+            }
+        }
+
+        let (x, y) = match pos {
+            0 => (0, 1),
+            1 => (-1, 0),
+            2 => (1, 0),
+            3 => (0, -1),
+            _ => panic!(""),
+        };
+
+        let mut pos = 0;
+        let mut value = 0.0;
+
+        for i in 0..action_values.len() {
+            if values[i] > value {
+                pos = i;
+                value = values[i];
+            }
+        }
+
+        let action = match pos {
+            0 => Action::Die,
+            1 => Action::Divide,
+            2 => Action::Eat,
+            3 => Action::Move,
+            _ => panic!(""),
+        };
+
+        (x, y, action)
     }
 
     fn update(&mut self) {
@@ -90,6 +133,8 @@ impl Field {
                     .as_mut()
                     .unwrap()
                     .update(input, Action::LENGTH + 4);
+
+                let (rx, ry, action) = self.values_to_action(output);
 
                 let target_x = rx + x;
                 let target_y = ry + y as isize;
