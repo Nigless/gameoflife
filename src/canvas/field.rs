@@ -7,6 +7,7 @@ use derives::EnumLength;
 /// field unit
 type Fu = u16;
 
+#[derive(EnumLength)]
 pub enum Action {
     Die,
     Move,
@@ -43,42 +44,86 @@ impl Field {
         self.height
     }
 
+    fn cells_to_values(&self, arr: &[&Option<Cell>], cell: &Cell) -> Vec<f32> {
+        let mut result: Vec<f32> = Vec::new();
+        for i in 0..arr.len() {
+            let j = i * 3;
+
+            let values = match &arr[i] {
+                Some(c) => c.get_values(),
+                None => [0.0, 0.0, 0.0],
+            };
+
+            result[j] = values[0];
+            result[j + 1] = values[1];
+            result[j + 2] = (cell.get_dna() - values[2]).abs()
+        }
+        result.push(cell.get_energy());
+
+        result
+    }
+
     fn update(&mut self) {
-        for x in 0..self.width {
-            for y in 0..self.height {
-                if let Some(c) = &mut self.data[(x * y) as usize] {
-                    let (rx, ry, action) =
-                        c.update(|rx, ry| self.get_cell(rx + x as isize, ry + y as isize));
+        for x in 0..self.width as isize {
+            for y in 0..self.height as isize {
+                let index = (x * y) as usize;
 
-                    let target = self.get_cell(rx + x as isize, ry + y as isize);
+                if self.data[index].is_none() {
+                    continue;
+                }
 
-                    match action {
-                        Action::Die => c.die(),
-                        Action::Divide => {
-                            if target.is_some() {
-                                continue;
-                            }
+                let input = self.cells_to_values(
+                    &[
+                        self.get_cell(x - 1, y + 1),
+                        self.get_cell(x + 0, y + 1),
+                        self.get_cell(x + 1, y + 1),
+                        self.get_cell(x - 1, y + 0),
+                        self.get_cell(x + 1, y + 0),
+                        self.get_cell(x - 1, y - 1),
+                        self.get_cell(x + 0, y - 1),
+                        self.get_cell(x + 1, y - 1),
+                    ],
+                    self.data[index].as_ref().unwrap(),
+                );
 
-                            self.set_cell(rx + x as isize, ry + y as isize, Some(c.divide()))
+                let output = self.data[index]
+                    .as_mut()
+                    .unwrap()
+                    .update(input, Action::LENGTH + 4);
+
+                let target_x = rx + x;
+                let target_y = ry + y as isize;
+                let target = self.get_cell(target_x, target_y);
+
+                match action {
+                    Action::Die => self.data[index].as_mut().unwrap().die(),
+                    Action::Divide => {
+                        if target.is_some() {
+                            continue;
                         }
-                        Action::Eat => {
-                            if target.is_none() {
-                                continue;
-                            }
 
-                            c.eat(target.unwrap());
+                        let new_cell = self.data[index].as_mut().unwrap().divide();
+                        self.set_cell(target_x, target_y, Some(new_cell))
+                    }
+                    Action::Eat => {
+                        let target = self.remove_cell(target_x, target_y);
 
-                            self.set_cell(x as isize, y as isize, None);
-                            self.set_cell(rx + x as isize, ry + y as isize, Some(*c))
+                        let cell = self.remove_cell(x, y);
+
+                        self.set_cell(target_x, target_y, cell);
+
+                        if let Some(target) = target {
+                            self.data[index].as_mut().unwrap().eat(target);
                         }
-                        Action::Move => {
-                            if target.is_some() {
-                                continue;
-                            }
-
-                            self.set_cell(x as isize, y as isize, None);
-                            self.set_cell(rx + x as isize, ry + y as isize, Some(*c))
+                    }
+                    Action::Move => {
+                        if target.is_some() {
+                            continue;
                         }
+
+                        let cell = self.remove_cell(x, y);
+
+                        self.set_cell(target_x, target_y, cell);
                     }
                 }
             }
@@ -120,5 +165,16 @@ impl Field {
 
     fn get_cell(&self, x: isize, y: isize) -> &Option<Cell> {
         &self.data[self.map_x(x) * self.map_y(y)]
+    }
+
+    fn remove_cell(&mut self, x: isize, y: isize) -> Option<Cell> {
+        let pos = self.map_x(x) * self.map_y(y);
+
+        if self.data[pos].is_some() {
+            let cell = self.data.remove(pos);
+            self.data.insert(pos, None);
+            return cell;
+        }
+        None
     }
 }
