@@ -19,8 +19,8 @@ const LAYERS: usize = 0;
 const WEIGHTS: usize = INPUTS * OUTPUTS;
 
 pub struct Cell {
-    died: bool,
-    energy: f32,
+    pub died: bool,
+    pub energy: f32,
     weights: Vec<f32>,
 }
 
