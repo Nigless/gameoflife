@@ -32,7 +32,19 @@ impl Field {
     pub const MAX_ENERGY: u16 = 100;
     pub const MUTATION_CHANCE: f32 = 0.5;
     pub const MUTATION_SCALE: f32 = 0.3;
+
     pub const ENERGY_LOSS: u16 = 1;
+
+    pub const CHARGE_AMOUNT: u16 = 5;
+
+    pub const ENERGIZE_AMOUNT: u16 = 10;
+    pub const ENERGIZE_COST: u16 = 2;
+
+    pub const DIVIDE_COST: u16 = 0;
+
+    pub const EAT_COST: u16 = 2;
+
+    pub const MOVE_COST: u16 = 2;
 
     pub fn new(width: Fu, height: Fu) -> Self {
         let mut data = HashMap::with_capacity((width * height) as usize);
@@ -40,9 +52,9 @@ impl Field {
 
         for x in 0..width {
             for y in 0..height {
-                // if rng.gen_bool(0.5) {
-                //     continue;
-                // }
+                if rng.gen_bool(0.5) {
+                    continue;
+                }
                 data.insert((x, y), Cell::new());
             }
         }
@@ -128,9 +140,9 @@ impl Field {
     pub fn update(&mut self) {
         for x in 0..self.width as isize {
             for y in 0..self.height as isize {
-                let pos = (x as Fu, y as Fu);
+                let cur_key = (x as Fu, y as Fu);
 
-                let cell = self.data.get_mut(&pos);
+                let cell = self.data.get_mut(&cur_key);
 
                 if cell.is_none() {
                     continue;
@@ -160,12 +172,12 @@ impl Field {
                         self.get_cell(x + 0, y - 1),
                         self.get_cell(x + 1, y - 1),
                     ],
-                    self.data.get(&pos).as_ref().unwrap(),
+                    self.data.get(&cur_key).as_ref().unwrap(),
                 );
 
                 let output = self
                     .data
-                    .get_mut(&pos)
+                    .get_mut(&cur_key)
                     .unwrap()
                     .update(input, Action::LENGTH + 4);
 
@@ -179,9 +191,9 @@ impl Field {
                 match action {
                     Action::Charge => self
                         .data
-                        .get_mut(&pos)
+                        .get_mut(&cur_key)
                         .unwrap()
-                        .give_energy((env * 5.0) as u16),
+                        .give_energy(Self::CHARGE_AMOUNT),
                     Action::Energize => {
                         if target.is_none() {
                             continue;
@@ -191,8 +203,15 @@ impl Field {
                             continue;
                         }
 
-                        self.data.get_mut(&pos).unwrap().take_energy(2);
-                        let amount = self.data.get_mut(&pos).unwrap().take_energy(10);
+                        self.data
+                            .get_mut(&cur_key)
+                            .unwrap()
+                            .take_energy(Self::ENERGIZE_COST);
+                        let amount = self
+                            .data
+                            .get_mut(&cur_key)
+                            .unwrap()
+                            .take_energy(Self::ENERGIZE_AMOUNT);
                         let target = self
                             .data
                             .get_mut(&(self.map_x(target_x), self.map_y(target_y)))
@@ -204,7 +223,12 @@ impl Field {
                             continue;
                         }
 
-                        let new_cell = self.data.get_mut(&pos).unwrap().divide();
+                        self.data
+                            .get_mut(&cur_key)
+                            .unwrap()
+                            .take_energy(Self::DIVIDE_COST);
+
+                        let new_cell = self.data.get_mut(&cur_key).unwrap().divide();
                         self.set_cell(target_x, target_y, new_cell)
                     }
                     Action::Eat => {
@@ -216,7 +240,7 @@ impl Field {
                             cell.give_energy(target.energy);
                         }
 
-                        cell.take_energy(2);
+                        cell.take_energy(Self::EAT_COST);
 
                         self.set_cell(target_x, target_y, cell);
                     }
@@ -226,8 +250,8 @@ impl Field {
                         }
 
                         let mut cell = self.remove_cell(x, y).unwrap();
-
-                        cell.take_energy(2);
+                        EAT
+                        cell.take_energy(Self::MOVE_COST);
 
                         self.set_cell(target_x, target_y, cell);
                     }
