@@ -6,6 +6,8 @@ use std::{
 use super::cell::Cell;
 use crate::lib::enum_length::EnumLength;
 use derives::EnumLength;
+use noise::{NoiseFn, Perlin};
+use rand::{thread_rng, Rng};
 
 /// field unit
 type Fu = u32;
@@ -22,22 +24,30 @@ pub enum Action {
 pub struct Field {
     width: Fu,
     height: Fu,
+    env: Perlin,
     data: HashMap<(Fu, Fu), Cell>,
 }
 
 impl Field {
     pub fn new(width: Fu, height: Fu) -> Self {
         let mut data = HashMap::with_capacity((width * height) as usize);
+        let mut rng = thread_rng();
 
         for x in 0..width {
             for y in 0..height {
+                // if rng.gen_bool(0.5) {
+                //     continue;
+                // }
                 data.insert((x, y), Cell::new());
             }
         }
 
+        let perlin = Perlin::new(1);
+
         Self {
             width,
             height,
+            env: perlin,
             data,
         }
     }
@@ -54,15 +64,14 @@ impl Field {
         let mut result: Vec<f32> = Vec::new();
         for i in 0..cells.len() {
             let values = match &cells[i] {
-                Some(c) => c.get_values(),
-                None => [0.0, 0.0, 0.0],
+                Some(c) => [(cell.get_dna() - c.get_dna()).abs(), c.get_died()],
+                None => [0.0, 0.0],
             };
 
             result.push(values[0]);
             result.push(values[1]);
-            result.push((cell.get_dna() - values[2]).abs());
         }
-        result.push(cell.get_energy());
+        result.push(1.0 - cell.get_energy());
 
         result
     }
@@ -126,7 +135,7 @@ impl Field {
                     continue;
                 }
 
-                cell.lose_enegry(1);
+                cell.take_energy(1);
 
                 let input = self.cells_to_values(
                     &[
@@ -153,9 +162,14 @@ impl Field {
                 let target_x = rx + x;
                 let target_y = ry + y;
                 let target = self.get_cell(target_x, target_y);
+                let env = self.get_env_value(x, y);
 
                 match action {
-                    Action::Charge => self.data.get_mut(&pos).unwrap().give_energy(4),
+                    Action::Charge => self
+                        .data
+                        .get_mut(&pos)
+                        .unwrap()
+                        .give_energy((env * 5.0) as u16),
                     Action::Energize => {
                         if target.is_none() {
                             continue;
@@ -179,7 +193,6 @@ impl Field {
                         }
 
                         let new_cell = self.data.get_mut(&pos).unwrap().divide();
-                        self.data.get_mut(&pos).unwrap().take_energy(2);
                         self.set_cell(target_x, target_y, new_cell)
                     }
                     Action::Eat => {
@@ -249,6 +262,10 @@ impl Field {
 
     fn remove_cell(&mut self, x: isize, y: isize) -> Option<Cell> {
         self.data.remove(&(self.map_x(x), self.map_y(y)))
+    }
+
+    fn get_env_value(&self, x: isize, y: isize) -> f32 {
+        self.env.get([self.map_x(x) as f64, self.map_x(y) as f64]) as f32
     }
 
     pub fn get_data(&self) -> &HashMap<(Fu, Fu), Cell> {
