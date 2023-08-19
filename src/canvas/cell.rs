@@ -5,7 +5,7 @@ use crate::lib::enum_length::EnumLength;
 use rand::{rngs::ThreadRng, thread_rng, Rng};
 
 fn f_pos(pos: u32) -> f32 {
-    pos as f32 * 0.1 + 1.0
+    pos as f32 * 3.0 + 1.0
 }
 
 pub struct Cell {
@@ -42,15 +42,6 @@ impl Cell {
         output
     }
 
-    pub fn lose_enegry(&mut self, amount: u16) {
-        if self.energy <= amount {
-            self.energy = 0;
-            self.die()
-        } else {
-            self.energy -= amount
-        }
-    }
-
     pub fn take_energy(&mut self, amount: u16) -> u16 {
         if self.energy <= amount {
             self.die();
@@ -79,23 +70,27 @@ impl Cell {
         let mut rng = thread_rng();
         let mut weights = self.weights.clone();
         for i in 0..weights.len() {
-            if rng.gen_bool(0.4) {
-                weights[i] += rng.gen_range(-0.1..0.1)
+            if rng.gen_bool(0.5) {
+                let weight = weights[i] + rng.gen_range(-0.3..0.3);
+                weights[i] = if weight > 1.0 {
+                    1.0
+                } else if weight < 0.0 {
+                    0.0
+                } else {
+                    weight
+                }
             }
         }
+        self.energy /= 2;
 
         Self {
             died: false,
-            energy: self.energy / 2,
+            energy: self.energy,
             weights,
         }
     }
 
-    pub fn get_values(&self) -> [f32; 3] {
-        [self.get_energy(), self.get_energy(), self.get_dna()]
-    }
-
-    fn get_died(&self) -> f32 {
+    pub fn get_died(&self) -> f32 {
         if self.died {
             0.0
         } else {

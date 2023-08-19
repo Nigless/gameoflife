@@ -11,3 +11,4 @@ egui = "0.22.0"
 rand = "0.8.5"
 derives = { path = "./derives" }
 colors-transform = "0.2.11"
+noise = "0.8.2"
