@@ -4,6 +4,8 @@ use crate::lib::enum_length::EnumLength;
 
 use rand::{rngs::ThreadRng, thread_rng, Rng};
 
+use super::field::Field;
+
 fn f_pos(pos: u32) -> f32 {
     pos as f32 * 3.0 + 1.0
 }
@@ -44,7 +46,6 @@ impl Cell {
 
     pub fn take_energy(&mut self, amount: u16) -> u16 {
         if self.energy <= amount {
-            self.die();
             let result = self.energy;
             self.energy = 0;
             result
@@ -55,11 +56,11 @@ impl Cell {
     }
 
     pub fn give_energy(&mut self, amount: u16) {
-        if self.energy >= 100 {
+        if self.energy >= Field::MAX_ENERGY {
             return;
         }
 
-        self.energy += min(100 - self.energy, amount);
+        self.energy += min(Field::MAX_ENERGY - self.energy, amount);
     }
 
     pub fn die(&mut self) {
@@ -70,8 +71,9 @@ impl Cell {
         let mut rng = thread_rng();
         let mut weights = self.weights.clone();
         for i in 0..weights.len() {
-            if rng.gen_bool(0.5) {
-                let weight = weights[i] + rng.gen_range(-0.3..0.3);
+            if rng.gen_bool(Field::MUTATION_CHANCE as f64) {
+                let weight =
+                    weights[i] + rng.gen_range(-Field::MUTATION_SCALE..Field::MUTATION_SCALE);
                 weights[i] = if weight > 1.0 {
                     1.0
                 } else if weight < 0.0 {

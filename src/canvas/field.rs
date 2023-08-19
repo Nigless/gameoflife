@@ -29,6 +29,11 @@ pub struct Field {
 }
 
 impl Field {
+    pub const MAX_ENERGY: u16 = 100;
+    pub const MUTATION_CHANCE: f32 = 0.5;
+    pub const MUTATION_SCALE: f32 = 0.3;
+    pub const ENERGY_LOSS: u16 = ;
+
     pub fn new(width: Fu, height: Fu) -> Self {
         let mut data = HashMap::with_capacity((width * height) as usize);
         let mut rng = thread_rng();
@@ -125,17 +130,22 @@ impl Field {
             for y in 0..self.height as isize {
                 let pos = (x as Fu, y as Fu);
 
-                if self.data.get(&pos).is_none() {
+                let cell = self.data.get_mut(&pos).unwrap();
+                
+                if cell.is_none() {
                     continue;
                 }
-
-                let cell = self.data.get_mut(&pos).unwrap();
 
                 if cell.died {
                     continue;
                 }
 
                 cell.take_energy(1);
+
+                if cell.energy <= 0 {
+                    cell.die();
+                    continue;
+                }
 
                 let input = self.cells_to_values(
                     &[
