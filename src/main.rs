@@ -8,7 +8,7 @@ mod lib;
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2((1920 / 2) as f32, (1080 / 2) as f32)),
+        initial_window_size: Some(egui::vec2((1920) as f32, (1080) as f32)),
         ..Default::default()
     };
     eframe::run_native("My egui App", options, Box::new(|_cc| Box::new(App::new())))

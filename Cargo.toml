@@ -10,3 +10,4 @@ eframe = "0.22.0"
 egui = "0.22.0"
 rand = "0.8.5"
 derives = { path = "./derives" }
+colors-transform = "0.2.11"

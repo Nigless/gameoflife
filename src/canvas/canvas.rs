@@ -1,5 +1,6 @@
-use std::time::Instant;
+use std::{f32::consts, time::Instant};
 
+use colors_transform::{Color, Hsl};
 use egui::{epaint::RectShape, Color32, Pos2, Rect, Rounding, Sense, Shape, Stroke, Vec2};
 
 use super::field::Field;
@@ -12,7 +13,7 @@ pub struct Canvas {
 impl Canvas {
     pub fn new(scale: f32) -> Self {
         Self {
-            field: Field::new(1920 / 4, 1080 / 4),
+            field: Field::new(1920 / 2, 1080 / 2),
             scale,
         }
     }
@@ -42,30 +43,35 @@ impl Canvas {
 
             painter.add(Shape::Rect(shp));
             for ((x, y), cell) in self.field.get_data().iter() {
+                if cell.died {
+                    continue;
+                }
+
                 let x = *x as f32 * self.scale;
                 let y = *y as f32 * self.scale;
 
                 shp.rect.min = Pos2 {
-                    x: x - 1.0,
-                    y: y - 1.0,
+                    x: x - 0.25 * self.scale,
+                    y: y - 0.25 * self.scale,
                 };
                 shp.rect.max = Pos2 {
-                    x: x + 2.0,
-                    y: y + 2.0,
+                    x: x + 0.5 * self.scale,
+                    y: y + 0.5 * self.scale,
                 };
 
-                if cell.died {
-                    shp.fill = Color32::from_rgb(255 / 2, 255 / 2, 255 / 2);
-                } else {
-                    shp.fill = Color32::from_rgb(255, 255, 255);
-                }
+                let rgb =
+                    Hsl::from(cell.get_dna() * 360.0, 100.0, cell.get_energy() * 50.0).to_rgb();
+
+                shp.fill = Color32::from_rgb(
+                    rgb.get_red() as u8,
+                    rgb.get_green() as u8,
+                    rgb.get_blue() as u8,
+                );
 
                 painter.add(Shape::Rect(shp));
             }
-            let s = Instant::now();
             self.field.update();
 
-            println!("{:?}", s.elapsed());
             ctx.request_repaint()
         });
     }
