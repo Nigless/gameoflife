@@ -12,10 +12,11 @@ type Fu = u32;
 
 #[derive(EnumLength)]
 pub enum Action {
-    Die,
+    Energize,
     Move,
     Eat,
     Divide,
+    Charge,
 }
 
 pub struct Field {
@@ -99,10 +100,11 @@ impl Field {
         }
 
         let action = match pos {
-            0 => Action::Die,
+            0 => Action::Energize,
             1 => Action::Divide,
             2 => Action::Eat,
             3 => Action::Move,
+            4 => Action::Charge,
             _ => panic!(""),
         };
 
@@ -124,12 +126,7 @@ impl Field {
                     continue;
                 }
 
-                if cell.energy <= 1.0 {
-                    cell.energy = 0.0;
-                    cell.died = true
-                } else {
-                    cell.energy -= 1.0
-                }
+                cell.lose_enegry(1);
 
                 let input = self.cells_to_values(
                     &[
@@ -154,17 +151,35 @@ impl Field {
                 let (rx, ry, action) = self.values_to_action(output);
 
                 let target_x = rx + x;
-                let target_y = ry + y as isize;
+                let target_y = ry + y;
                 let target = self.get_cell(target_x, target_y);
 
                 match action {
-                    Action::Die => self.data.get_mut(&pos).unwrap().die(),
+                    Action::Charge => self.data.get_mut(&pos).unwrap().give_energy(4),
+                    Action::Energize => {
+                        if target.is_none() {
+                            continue;
+                        }
+
+                        if target.unwrap().died {
+                            continue;
+                        }
+
+                        self.data.get_mut(&pos).unwrap().take_energy(2);
+                        let amount = self.data.get_mut(&pos).unwrap().take_energy(10);
+                        let target = self
+                            .data
+                            .get_mut(&(self.map_x(target_x), self.map_y(target_y)))
+                            .unwrap();
+                        target.give_energy(amount);
+                    }
                     Action::Divide => {
-                        if target.is_some() {
+                        if target.is_some() && !target.unwrap().died {
                             continue;
                         }
 
                         let new_cell = self.data.get_mut(&pos).unwrap().divide();
+                        self.data.get_mut(&pos).unwrap().take_energy(2);
                         self.set_cell(target_x, target_y, new_cell)
                     }
                     Action::Eat => {
@@ -173,17 +188,21 @@ impl Field {
                         let mut cell = self.remove_cell(x, y).unwrap();
 
                         if let Some(target) = target {
-                            cell.eat(target);
+                            cell.give_energy(target.energy);
                         }
+
+                        cell.take_energy(2);
 
                         self.set_cell(target_x, target_y, cell);
                     }
                     Action::Move => {
-                        if target.is_some() {
+                        if target.is_some() && !target.unwrap().died {
                             continue;
                         }
 
-                        let cell = self.remove_cell(x, y).unwrap();
+                        let mut cell = self.remove_cell(x, y).unwrap();
+
+                        cell.take_energy(2);
 
                         self.set_cell(target_x, target_y, cell);
                     }

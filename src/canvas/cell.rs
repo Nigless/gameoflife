@@ -1,26 +1,16 @@
+use std::cmp::{max, min};
+
 use crate::lib::enum_length::EnumLength;
 
 use rand::{rngs::ThreadRng, thread_rng, Rng};
 
-use super::field::Action;
-
-fn fPos(pos: u32) -> f32 {
+fn f_pos(pos: u32) -> f32 {
     pos as f32 * 0.1 + 1.0
 }
-///```
-/// x  x  x
-/// x  o  x
-/// x  x  x
-/// ```
-const FOV: usize = 8;
-const INPUTS: usize = FOV * 3 + 1;
-const OUTPUTS: usize = FOV + 4;
-const LAYERS: usize = 0;
-const WEIGHTS: usize = INPUTS * OUTPUTS;
 
 pub struct Cell {
     pub died: bool,
-    pub energy: f32,
+    pub energy: u16,
     weights: Vec<f32>,
 }
 
@@ -28,7 +18,7 @@ impl Cell {
     pub fn new() -> Self {
         Self {
             died: false,
-            energy: 100.0,
+            energy: 100,
             weights: Vec::new(),
         }
     }
@@ -52,12 +42,37 @@ impl Cell {
         output
     }
 
-    pub fn die(&mut self) {
-        self.died = true
+    pub fn lose_enegry(&mut self, amount: u16) {
+        if self.energy <= amount {
+            self.energy = 0;
+            self.die()
+        } else {
+            self.energy -= amount
+        }
     }
 
-    pub fn eat(&mut self, cell: Cell) {
-        self.energy += cell.energy
+    pub fn take_energy(&mut self, amount: u16) -> u16 {
+        if self.energy <= amount {
+            self.die();
+            let result = self.energy;
+            self.energy = 0;
+            result
+        } else {
+            self.energy -= amount;
+            amount
+        }
+    }
+
+    pub fn give_energy(&mut self, amount: u16) {
+        if self.energy >= 100 {
+            return;
+        }
+
+        self.energy += min(100 - self.energy, amount);
+    }
+
+    pub fn die(&mut self) {
+        self.died = true
     }
 
     pub fn divide(&mut self) -> Self {
@@ -71,7 +86,7 @@ impl Cell {
 
         Self {
             died: false,
-            energy: self.energy / 2.0,
+            energy: self.energy / 2,
             weights,
         }
     }
@@ -89,7 +104,7 @@ impl Cell {
     }
 
     pub fn get_energy(&self) -> f32 {
-        self.energy
+        self.energy as f32 / 100.0
     }
 
     pub fn get_dna(&self) -> f32 {
@@ -99,13 +114,13 @@ impl Cell {
             .iter()
             .map(|v| {
                 i += 1;
-                v * fPos(i as u32)
+                v * f_pos(i as u32)
             })
             .sum();
 
         let mut weight_sum = 0.0;
         for i in 0..self.weights.len() {
-            weight_sum += fPos(i as u32)
+            weight_sum += f_pos(i as u32)
         }
 
         list_sum / weight_sum

@@ -7,7 +7,7 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         Self {
-            canvas: Canvas::new(3.0),
+            canvas: Canvas::new(2.0),
         }
     }
 }
