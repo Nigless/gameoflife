@@ -250,7 +250,6 @@ impl Field {
                         }
 
                         let mut cell = self.remove_cell(x, y).unwrap();
-                        EAT
                         cell.take_energy(Self::MOVE_COST);
 
                         self.set_cell(target_x, target_y, cell);
